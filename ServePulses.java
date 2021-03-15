@@ -141,13 +141,16 @@ class PulseServerState extends ServerState {
   		PulseData pd = new PulseData( req.data() );
   		
   		Query q = pulseDatabase.query( req.sessionId() );
-  		q.input( "pulses", "version", String.valueOf(pd.version()) )
-  		 .input( "pulses", "captureId", String.valueOf(pd.captureId()) )
-  		 .input( "pulses", "count", String.valueOf(pd.count()) )
-  		 .input( "pulses", "timestamp", String.valueOf(pd.timestamp()) )
-  		 .input( "pulses", "samples", pd.samples().toString() )
+  		//q.transform( "pulses", "Server Timestamp", "TimeStamp" )
+  		q.input( "pulses", "Server Timestamp", "auto" )
+  		 .input( "pulses", "Version", String.valueOf(pd.version()) )
+  		 .input( "pulses", "Capture ID", String.valueOf(pd.captureId()) )
+  		 .input( "pulses", "FPGA Count", String.valueOf(pd.count()) )
+  		 .input( "pulses", "Server Count", String.valueOf(pd.actualCount()) )
+  		 .input( "pulses", "FPGA Timestamp", String.valueOf(pd.timestamp()) )
+  		 .input( "pulses", "Samples", pd.samples().toString() )
   		 .execute();
-  		
+  		 
   		addDataList( pd.samples() );
   		res.setMIME( "text/plain" );
   		res.setBody( "Converted string from hex to bytes:\n"+req.data()+"\n"+pd );

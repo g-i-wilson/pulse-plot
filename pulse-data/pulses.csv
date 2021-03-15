@@ -1,3 +1,4 @@
-,version,captureId,count,timestamp,samples
-,,,,,
-,,,,,
+,Server Timestamp,Version,Capture ID,FPGA Count,Server Count,FPGA Timestamp,Samples
+,,,,,,,
+,TimeStamp,,,,,,MaskCommas
+1,2021-03-15T11:11:47.132631,0,1,4,5,1,[1| 16| 256| 4096| 4096]
