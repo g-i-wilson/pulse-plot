@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<head>
+	<style type="text/css">
+		table, td, th {  
+			border: 1px solid #ddd;
+			text-align: left;
+		}
+		table {
+			border-collapse: collapse;
+			width: 100%;
+		}
+		th, td {
+			padding: 15px;
+		}
+	</style>
+</head>
+<body style='background-color:#eeeeee'>
+	////plotlyDiv////
+	<script src='plotly-latest.min.js'></script>
+	<script>
+		var layout = {
+			showlegend: false,
+			////plotSize////
+			//autosize: false,
+			//width: 1200,
+			//height: 720,
+			margin: {
+				l: 40,
+				r: 10,
+				b: 20,
+				t: 10,
+				pad: 2
+			},
+			scene: {aspectratio: {x:3, y:1, z:0.5}},
+			//yaxis: {
+				//title: 'Y-axis Title',
+				//automargin: true,
+				//titlefont: { size:30 },
+			//},
+			paper_bgcolor: '#f7f7f7',
+			//plot_bgcolor:  '#f7f7f7',
+			barmode: 'overlay'
+		};
+		////plotCode////
+	</script>
+</body>
+</html>
