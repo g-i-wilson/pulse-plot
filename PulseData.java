@@ -30,10 +30,16 @@ public class PulseData {
 	}
 	
 	private static void bytesLittleEndian( long l, byte[] buf, int start, int end ) {
+		long lcopy = l;
 		for (int i=start; i<end; i++) {
-			buf[i] = (byte)(l & 0xff);
-			l = l >> 8;
+			buf[i] = (byte)(lcopy & 0xff);
+			lcopy = lcopy >> 8;
 		}
+		System.out.print( l+" -> "+intLittleEndian(buf, start, end)+" packed as:" );
+		for (int i=start; i<end; i++) {
+			System.out.print( buf[i]+"," );
+		}
+		System.out.println();
 	}
 	
   private static int intLittleEndian( byte[] buf, int start, int end ) {
@@ -41,11 +47,12 @@ public class PulseData {
   	int leftShift = 0;
   	int total = 0;
   	for (int i=start; i<end; i++) {
-			total |= ((int)buf[i]) << leftShift;
+  		if (buf[i] != 0x00) total |= ((int)buf[i]) << leftShift;
   		//System.out.println( "index:"+i+", value:"+buf[i]+" << "+leftShift+" --> total:"+total );
 			leftShift += 8;
 		}
 		if ((buf[end-1] & 0x80) == 0x80) { // negative value
+			System.out.println( "negative!");
 			for (int i=end; i<start+4; i++) {
 				total |= 0xff << leftShift;
 				leftShift += 8;
