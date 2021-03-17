@@ -4,3 +4,6 @@
 [submodule "canoedb"]
 	path = canoedb
 	url = git@github.com:g-i-wilson/canoedb.git
+[submodule "bluegill"]
+	path = bluegill
+	url = git@github.com:g-i-wilson/bluegill.git
