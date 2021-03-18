@@ -3,35 +3,55 @@ import bluegill.*;
 
 public class DummyPulseData extends PulseData {
 
+	private int captureId;
+	private long timestamp;
+
+	private static double randomRange ( double min, double max ) {
+		return (Math.random()*(max-min))+min;
+	}
+
 	private static List<Integer> dummyData ( int samplesPerCycle ) {
 		List<Integer> data = new ArrayList<>();
 		SignalPath wf = new WindowFilter( samplesPerCycle );
 		QuadratureModulator qm = new QuadratureModulator( (double)samplesPerCycle );
-		for (int i=0; i<50; i++) {
-			data.add( (int)wf.sample( 100 * qm.phase( Math.PI/2 ) * 0.1 ) );
+		double phaseAngle = randomRange(Math.PI/2, Math.PI*3/2);
+		for (int i=0; i<(int)randomRange(20,50); i++) {
+			data.add( (int)wf.sample( 100 * qm.phase( phaseAngle ) * 0.1 ) );
 		}
 		for (int i=0; i<50; i++) {
-			data.add( (int)wf.sample( 100 * qm.phase( Math.PI/2 ) ) );
+			data.add( (int)wf.sample( 100 * qm.phase( phaseAngle ) ) );
 		}
-		for (int i=0; i<100; i++) {
-			data.add( (int)wf.sample( 100 * qm.phase( Math.PI/2 ) * 0.1 ) );
+		for (int i=0; i<(int)randomRange(50,80); i++) {
+			data.add( (int)wf.sample( 100 * qm.phase( phaseAngle ) * 0.1 ) );
 		}
-		System.out.println( data );
 		return data;
 	}
+	
+	public DummyPulseData () {
+		this( 0, 0 );
+	}
 
-	public DummyPulseData ( int captureId, int timestamp ) {
-		super(
-			pack(
-				0, captureId, timestamp, dummyData( 16 )
-			),
-			16
-		);
+	public DummyPulseData ( int captureId, long timestamp ) {
+		super( 0, captureId, timestamp, dummyData( 16 ), 16 );
+		this.captureId = captureId;
+		this.timestamp = timestamp;
+	}
+	
+	public DummyPulseData spawn () {
+		return spawn( 1 );
+	}
+	
+	public DummyPulseData spawn ( long timeDelta ) {
+		return new DummyPulseData( captureId+1, timestamp+timeDelta );
 	}
 	
 	public static void main (String[] args) {
-		DummyPulseData dpd = new DummyPulseData( 1, 100 );
-		System.out.println( dpd );
+		DummyPulseData dpd = null;
+		for (int i=0; i<3; i++) {
+			if (dpd == null) dpd = new DummyPulseData( 1, 100 );
+			else dpd = dpd.spawn();
+			System.out.println( dpd );
+		}
 	}
 	
 }

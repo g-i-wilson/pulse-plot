@@ -1,12 +1,11 @@
-import java.math.BigInteger;
 import java.util.*;
 import java.time.LocalDateTime;
 import bluegill.*;
 
 public class PulseData {
 
+	private Bytes						packet;
 	private LocalDateTime		timeReceived;	
-	private byte[] 					data;
 	private int							version;
 	private int							captureId;
 	private int							count;
@@ -17,80 +16,38 @@ public class PulseData {
 	private List<Double>		phase;
 	private int 						duration;
 	
-	public static byte[] pack ( int version, int captureId, long timestamp, List<Integer> samples ) {
-		byte[] bytes = new byte[ 2+2+4+8+2*samples.size() ];
-		bytesLittleEndian( version, 				bytes, 0, 2 );
-		bytesLittleEndian( captureId, 			bytes, 2, 4 );
-		bytesLittleEndian( samples.size(), 	bytes, 4, 8 );
-		bytesLittleEndian( timestamp,				bytes, 8, 16 );
+	private static Bytes pack (  int version, int captureId, long timestamp, List<Integer> samples ) {
+  	Bytes packet = new Bytes( new byte[2+2+4+8+samples.size()*2] );
+  	packet
+			.writeShortLE( (short)version, 0, 2 )
+			.writeShortLE( (short)captureId, 2, 2 )
+			.writeIntLE( samples.size(), 4, 4 )
+			.writeLongLE( timestamp, 8, 8 );
 		for (int i=0; i<samples.size(); i++) {
-			bytesLittleEndian( samples.get(i).intValue(), bytes, i*2+16, i*2+18 );
+			packet.writeShortLE( (short)samples.get(i).intValue(), i*2+16, 2 );
 		}
-		return bytes;
+		return packet;
 	}
-	
-	private static void bytesLittleEndian( long l, byte[] buf, int start, int end ) {
-		long lcopy = l;
-		for (int i=start; i<end; i++) {
-			buf[i] = (byte)(lcopy & 0xff);
-			lcopy = lcopy >> 8;
-		}
-		System.out.print( l+" -> "+intLittleEndian(buf, start, end)+" packed as:" );
-		for (int i=start; i<end; i++) {
-			System.out.print( buf[i]+"," );
-		}
-		System.out.println();
-	}
-	
-  private static int intLittleEndian( byte[] buf, int start, int end ) {
-  	//System.out.println( start+", "+end );
-  	int leftShift = 0;
-  	int total = 0;
-  	for (int i=start; i<end; i++) {
-  		if (buf[i] != 0x00) total |= ((int)buf[i]) << leftShift;
-  		//System.out.println( "index:"+i+", value:"+buf[i]+" << "+leftShift+" --> total:"+total );
-			leftShift += 8;
-		}
-		if ((buf[end-1] & 0x80) == 0x80) { // negative value
-			System.out.println( "negative!");
-			for (int i=end; i<start+4; i++) {
-				total |= 0xff << leftShift;
-				leftShift += 8;
-			}
-		}
-		return total;
-  }
   
-  private static int charToNibble( int charVal ) {
-  	if 				(charVal >= 48 && charVal <= 57) 		return charVal-48;
-  	else if 	(charVal >= 65 && charVal <= 70) 		return charVal-55;
-  	else if 	(charVal >= 97 && charVal <= 102) 	return charVal-87;
-  	else 			return 0;
+  public PulseData ( int version, int captureId, long timestamp, List<Integer> samples, double samplesPerCycle ) {
+  	this( pack(version, captureId, timestamp, samples), samplesPerCycle );
   }
-  
-  private static byte[] strToBytes( String hexStr ) {
-  	byte[] charArray = hexStr.getBytes();
-  	byte[] byteArray = new byte[charArray.length/2];
-  	for (int i=0; i<byteArray.length; i++) {
-  		byteArray[i] = (byte)( (charToNibble(charArray[i*2]) << 4) + charToNibble(charArray[i*2+1]) );
-  		//System.out.println( "upper: "+charToNibble(charArray[i*2])+" << 4, lower:"+charToNibble(charArray[i*2+1])+", total:"+byteArray[i] );
-  	}
-  	//System.out.println();
-  	return byteArray;
-  }
-  
+
   public PulseData ( String hexStr, double samplesPerCycle ) {
-  	this( strToBytes( hexStr), samplesPerCycle );
+  	this( new Bytes( hexStr), samplesPerCycle );
   }
   
-  public PulseData ( byte[] byteArray, double samplesPerCycle ) {
+  public PulseData ( byte[] bytes, double samplesPerCycle ) {
+  	this( new Bytes( bytes ), samplesPerCycle );
+  }
+  
+  public PulseData ( Bytes packet, double samplesPerCycle ) {
   	timeReceived	= LocalDateTime.now();
-  	data 					=	byteArray;
-  	//System.out.println( "length: "+data.length );
-  	version 			=	intLittleEndian( data, 0, 2 );
-  	captureId			=	intLittleEndian( data, 2, 4 );
-  	count					=	intLittleEndian( data, 4, 8 );
-  	timestamp			= ((long)intLittleEndian( data, 8, 12 )) + (((long)intLittleEndian( data, 12, 16 )) << 32);
+  	this.packet 	=	packet;
+  	version 			=	packet.readShortLE( 0, 2 );
+  	captureId			=	packet.readShortLE( 2, 2 );
+  	count					=	packet.readIntLE( 4, 4 );
+  	timestamp			= packet.readLongLE( 8, 8 );
   	samples				= new ArrayList<Integer>();
   	amplitude			= new ArrayList<Double>();
   	phase					= new ArrayList<Double>();
@@ -102,8 +59,8 @@ public class PulseData {
 		
 		int tempDuration = 0;
   	
-  	for (int i=16; i<data.length; i+=2) {
-  		int sample = intLittleEndian( data, i, i+2 );
+  	for (int i=16; i<packet.size(); i+=2) {
+  		int sample = packet.readShortLE( i, 2 );
   		samples.add( sample );
   		
   		qd.input( sample );
@@ -128,8 +85,8 @@ public class PulseData {
 		return timeReceived;
 	}
 	
-	public byte[] packet () {
-		return data;
+	public Bytes packet () {
+		return packet;
 	}
 	
 	public int version () {
@@ -178,18 +135,10 @@ public class PulseData {
 	}
 	
 	public static void main (String[] args) {
-		byte[] testBytes = new byte[]{0x01, 0x00, 0x04, 0x00};
-		System.out.println( "testing intLittleEndian: "+(intLittleEndian( testBytes, 0, 2 )+intLittleEndian( testBytes, 2, 4 )) );
-	
-		PulseData pd = new PulseData( "000001000400000001000000000000000100100000010010", 4 );
+		PulseData pd = new PulseData( "00 00 | 01 00 | 04 00 00 00 | 01 00 00 00 00 00 00 00 | 01 00 | 10 00 | 00 01 | 00 10", 4 );
 		System.out.println( pd );
 		
-		PulseData pd2 = new PulseData(
-			PulseData.pack(
-				0, 10, 100, new ArrayList<Integer>(Arrays.asList( -100,100,-100,100 ))
-			),
-			4
-		);
+		PulseData pd2 = new PulseData( 0, 10, 100, new ArrayList<Integer>(Arrays.asList( -100,100,-100,100 )), 4 );
 		System.out.println( pd2 );
 	}
 

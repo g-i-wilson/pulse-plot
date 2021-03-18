@@ -11,7 +11,7 @@ public class ServePulses {
   public static void main(String[] args) throws Exception {
 
     PulseServerState c = new PulseServerState( "pulse-data" );
-
+    
     Server testPost 				= new ServerHTTP( c, 9000, "test POST" );
     Server displayLast		 	= new ServerHTTP( c, 9001, "display last pulse" );
     Server display100 			= new ServerHTTP( c, 9002, "display last 100 pulses" );
@@ -34,6 +34,8 @@ public class ServePulses {
 
 class PulseServerState extends ServerState {
   
+  private DummyPulseData dpd = new DummyPulseData();
+
   private TemplateFile plotlyTemplate;
   private TemplateFile plotlyJS;
   private Database pulseDatabase;
@@ -51,6 +53,12 @@ class PulseServerState extends ServerState {
   	return str.substring(1);
   }
   
+  private String arrayDoubleJoin (List<Double> l) {
+  	String str = "";
+  	for (Double d : l) str += ","+d;
+  	return str.substring(1);
+  }
+  
   private void addPulse ( int sessionId, PulseData pd ) {
  		Query q = pulseDatabase.query( sessionId );
 		//q.transform( "pulses", "Server Timestamp", "TimeStamp" )
@@ -60,7 +68,9 @@ class PulseServerState extends ServerState {
 		 .input( "pulses", "FPGA Count", String.valueOf(pd.count()) )
 		 .input( "pulses", "Server Count", String.valueOf(pd.actualCount()) )
 		 .input( "pulses", "FPGA Timestamp", String.valueOf(pd.timestamp()) )
+		 .input( "pulses", "duration", String.valueOf(pd.duration()) )
 		 .input( "pulses", "Samples", arrayIntegerJoin( pd.samples() ) )
+		 .input( "pulses", "Amplitude", arrayDoubleJoin( pd.amplitude() ) )
 		 .execute( true ); // write flag
 		System.out.println( q );
 	}
@@ -86,18 +96,25 @@ class PulseServerState extends ServerState {
 
 		////////////////////////// 49154
   	} else if ( req.socket().getLocalPort() == 49154 ) {
-  		PulseData pd = new PulseData( req.data() );
+  		PulseData pd = new PulseData( req.data(), 16 );
   		addPulse( req.sessionId(), pd );
   		res.setMIME( "text/plain" );
   		res.setBody( "Converted string from hex to bytes:\n"+req.data()+"\n"+pd );
   		
 		////////////////////////// 49155
   	} else if ( req.socket().getLocalPort() == 49155 ) {
-  		PulseData pd = new PulseData( req.data().getBytes() );
+  		PulseData pd = new PulseData( req.data().getBytes(), 16 );
   		addPulse( req.sessionId(), pd );
   		res.setMIME( "text/plain" );
   		res.setBody( "Thanks Storm!\n\n"+pd );
   		  		
+		////////////////////////// dummy data
+  	} else if ( req.path().toLowerCase().equals("/dummy") ) {
+  		PulseData pd = dpd.spawn();
+  		addPulse( req.sessionId(), pd );
+  		res.setMIME( "text/plain" );
+  		res.setBody( "Dummy data:\n"+pd );
+  		
 		////////////////////////// 2d
   	} else if ( req.path().toLowerCase().equals("/2d") ) {
    		List<TableRow> pulses = pulseList( req.sessionId(), req.data() );
@@ -105,16 +122,16 @@ class PulseServerState extends ServerState {
 			String latestPulse = pulses.get(pulses.size()-1).read("Samples");	
 			String plotlyDiv = "<table>\n";
 			String plotCode = "";
-			for (int i=pulses.size()-1; i>pulses.size()-11; i--) {
+			for (int i=pulses.size()-1; i>=0; i--) {
 				String divId = "plot"+i;
 				plotlyDiv += "<tr>"+
 										"<td width=100><button onClick=\"window.open(encodeURI('data:text/csv;charset=utf-8,"+pulses.get(i).read("Samples")+"'))\">Download CSV</button></td>"+
 										"<td width=100>"+pulses.get(i).read("Server Timestamp")+"</td>"+
 										"<td width=100>"+pulses.get(i).read("Version")+"</td>"+
-										"<td width=100>"+pulses.get(i).read("Capure ID")+"</td>"+
+										"<td width=100>"+pulses.get(i).read("Capture ID")+"</td>"+
 										"<td width=100>"+pulses.get(i).read("FPGA Count")+"</td>"+
 										"<td width=100>"+pulses.get(i).read("Server Count")+"</td>"+
-										"<td width=100>"+pulses.get(i).read("FPGA Timestamp")+"</td>"+
+										"<td width=100>"+pulses.get(i).read("duration")+"</td>"+
 										"<td><div id='"+divId+"'></div></td>"+
 										"</tr>"+
 										"\n";
@@ -167,7 +184,7 @@ class PulseServerState extends ServerState {
 					int y = 0;
 					String xStr = "";
 					String yStr = "";
-	 				for (int i=0; i<pulses.size(); i++) {
+	 				for (int i=0; i<pulse.read("Samples").split(",").length; i++) {
 //						xStr += "\""+pulse.read("Server Timestamp")+"\",";
 						xStr += x+",";
 						yStr += (y++)+",";
