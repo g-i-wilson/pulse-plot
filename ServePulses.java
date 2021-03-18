@@ -136,8 +136,7 @@ class PulseServerState extends ServerState {
 										"</tr>"+
 										"\n";
 				plotCode += "Plotly.newPlot( '"+divId+
-										"', [ {type:'scatter', marker:{opacity:'0.2', color:'#0000ff'}, y:["+pulses.get(i).read("Samples")+
-										"]} ], layout );\n";
+										"', [ {type:'scatter', marker:{opacity:'0.2', color:'#0000ff'}, y:["+pulses.get(i).read("Samples")+"]}, {type:'scatter', marker:{opacity:'0.2', color:'#00ffff'}, y:["+pulses.get(i).read("Amplitude")+"]} ], layout );\n";
 			}
 			plotlyDiv += "</table>";
   		res.setBody(
@@ -159,6 +158,7 @@ class PulseServerState extends ServerState {
 			}			
 			String latestPulseTime = pulses.get(0).read("Server Timestamp");
 			String latestPulse = pulses.get(0).read("Samples");  		
+			String latestAmplitude = pulses.get(0).read("Amplitude");  		
   		res.setBody(
   			plotlyTemplate
   			.replace( "plotlyDiv", "Latest pulse at: "+latestPulseTime+"<button onClick=\"window.open(encodeURI('data:text/csv;charset=utf-8,"+latestPulse+"'))\">Download CSV</button><br><br><div id='plot_div'></div>" )
@@ -168,7 +168,11 @@ class PulseServerState extends ServerState {
 				.replace( "plotCode",
 					"Plotly.newPlot( 'plot_div', [{type:'scatter', marker:{opacity:'0.2', color:'#0000ff'}, y:["+
 					latestPulse +
-					"]} ], layout );\n"
+					"]}," +
+					"{type:'scatter', marker:{opacity:'0.2', color:'#00ffff'}, y:["+
+					latestAmplitude +
+					"]}," +
+					" ], layout );\n"
 				).toString()
   		);
 
