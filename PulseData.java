@@ -11,7 +11,7 @@ public class PulseData {
 	private int							count;
 	private int							actualCount;
 	private long						timestamp;
-	private List<Integer>		samples;
+	private List<Double>		samples;
 	private List<Double>		amplitude;
 	private List<Double>		phase;
 	private int 						duration;
@@ -48,7 +48,7 @@ public class PulseData {
   	captureId			=	packet.readShortLE( 2, 2 );
   	count					=	packet.readIntLE( 4, 4 );
   	timestamp			= packet.readLongLE( 8, 8 );
-  	samples				= new ArrayList<Integer>();
+  	samples				= new ArrayList<Double>();
   	amplitude			= new ArrayList<Double>();
   	phase					= new ArrayList<Double>();
   	duration			= 0;
@@ -56,15 +56,16 @@ public class PulseData {
   	
 		QuadratureDemodulator qd = new QuadratureDemodulator( samplesPerCycle );
 		Comparitor comp = new Comparitor( 100.0, 500.0 );
+		SignalPath delay = new SampleDelay( (int)samplesPerCycle );
 		
 		int tempDuration = 0;
   	
   	for (int i=16; i<packet.size(); i+=2) {
   		int sample = packet.readShortLE( i, 2 );
-  		samples.add( sample );
+  		samples.add( delay.sample( (double)sample ) );
   		
   		qd.input( sample );
-  		amplitude.add( qd.amplitude() );
+  		amplitude.add( qd.amplitude()/4 );
   		phase.add( qd.phase() );
   		
   		comp.sample( qd.amplitude() );
@@ -109,7 +110,7 @@ public class PulseData {
 		return timestamp;
 	}
 	
-	public List<Integer> samples () {
+	public List<Double> samples () {
 		return samples;
 	}
 	

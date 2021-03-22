@@ -69,7 +69,7 @@ class PulseServerState extends ServerState {
 		 .input( "pulses", "Server Count", String.valueOf(pd.actualCount()) )
 		 .input( "pulses", "FPGA Timestamp", String.valueOf(pd.timestamp()) )
 		 .input( "pulses", "duration", String.valueOf(pd.duration()) )
-		 .input( "pulses", "Samples", arrayIntegerJoin( pd.samples() ) )
+		 .input( "pulses", "Samples", arrayDoubleJoin( pd.samples() ) )
 		 .input( "pulses", "Amplitude", arrayDoubleJoin( pd.amplitude() ) )
 		 .execute( true ); // write flag
 		System.out.println( q );
@@ -78,13 +78,17 @@ class PulseServerState extends ServerState {
 	public List<TableRow> pulseList ( int sessionId, String queryData ) {
 		Query q = pulseDatabase.query( sessionId );
 		q.execute( queryData );
+		//System.out.println( q.rows() );
 		List<TableRow> pulses = new ArrayList<>();
-		for (TableRow tr : q.rows( q.db().table("pulses"), "Server Timestamp" )) { // use "Server Timestamp" as the filter
+		for (TableRow tr : q.rows( q.db().table("pulses"), "Server Timestamp", "" )) { // use "Server Timestamp" as the filter
 			pulses.add( tr );
 		}
 		return pulses;
 	}
-
+	
+	private String notNull ( String str ) {
+		return ( str != null ? str : "" );
+	}
 	
   public void respondHTTP ( RequestHTTP req, ResponseHTTP res ) {
   	System.out.println( req.path() );
@@ -117,60 +121,110 @@ class PulseServerState extends ServerState {
   		
 		////////////////////////// 2d
   	} else if ( req.path().toLowerCase().equals("/2d") ) {
-   		List<TableRow> pulses = pulseList( req.sessionId(), req.data() );
-			String latestPulseTime = pulses.get(pulses.size()-1).read("Server Timestamp");
-			String latestPulse = pulses.get(pulses.size()-1).read("Samples");	
-			String plotlyDiv = "<table>\n";
+			Query q = pulseDatabase
+				.query( req.sessionId()	)
+				.output( "pulses", "Samples" ) // output (not used as filter)
+				.output( "pulses", "Amplitude" ) // output (not used as filter)
+				.execute( req.data() ); // parses HTTP data adds inputs (filters)
+			System.out.println( q );
+			String plotlyHeader =
+										"<form>\n"+
+										"<table>\n"+
+										"<tr>\n"+
+										"	<th>Received Time</th>\n"+
+										"	<th>Capture ID</th>\n"+
+										"	<th>Total Samples</th>\n"+
+										"	<th>Pulse Duration</th>\n"+
+										"	<th rowspan=2>Chart</th>\n"+
+										"</tr>\n"+
+										"<tr>\n"+
+										"	<td>"+
+										"		<input type=\"button\" value=\"Today\" onclick=\""+
+													"this.form.elements['pulses.Server Timestamp'].value='"+LocalDateTime.now().toString().substring(0,10)+"';"+
+													"this.form.elements['pulses.Capture ID'].value='';"+
+													"this.form.elements['pulses.Server Count'].value='';"+
+													"this.form.elements['pulses.duration'].value='';"+
+													"this.form.submit();"+
+												"\">\n"+
+										"		<input type=\"text\" name=\"pulses.Server Timestamp\" value=\""+notNull(q.input("pulses","Server Timestamp"))+"\" placeholder=\"Filter\" onblur=\"this.form.submit();\">\n"+
+										"		<a href=\"latest\">Latest</a>\n"+
+										"	</td>\n"+
+										"	<td><input type=\"text\" name=\"pulses.Capture ID\" value=\""+notNull(q.input("pulses","Capture ID"))+"\" placeholder=\"Filter\" onblur=\"this.form.submit();\" size=5></td>\n"+
+										"	<td><input type=\"text\" name=\"pulses.Server Count\" value=\""+notNull(q.input("pulses","Server Count"))+"\" placeholder=\"Filter\" onblur=\"this.form.submit();\" size=5></td>\n"+
+										"	<td><input type=\"text\" name=\"pulses.duration\" value=\""+notNull(q.input("pulses","duration"))+"\" placeholder=\"Filter\" onblur=\"this.form.submit();\" size=5></td>\n"+
+										"</tr>\n";
+			String plotlyFooter =
+										"</table>\n"+
+										"</form>\n";
+			String plotlyRows = "";
 			String plotCode = "";
-			for (int i=pulses.size()-1; i>=0; i--) {
-				String divId = "plot"+i;
-				plotlyDiv += "<tr>"+
-										"<td width=100><button onClick=\"window.open(encodeURI('data:text/csv;charset=utf-8,"+pulses.get(i).read("Samples")+"'))\">Download CSV</button></td>"+
-										"<td width=100>"+pulses.get(i).read("Server Timestamp")+"</td>"+
-										"<td width=100>"+pulses.get(i).read("Version")+"</td>"+
-										"<td width=100>"+pulses.get(i).read("Capture ID")+"</td>"+
-										"<td width=100>"+pulses.get(i).read("FPGA Count")+"</td>"+
-										"<td width=100>"+pulses.get(i).read("Server Count")+"</td>"+
-										"<td width=100>"+pulses.get(i).read("duration")+"</td>"+
-										"<td><div id='"+divId+"'></div></td>"+
-										"</tr>"+
-										"\n";
-				plotCode += "Plotly.newPlot( '"+divId+
-										"', [ {type:'scatter', marker:{opacity:'0.2', color:'#0000ff'}, y:["+pulses.get(i).read("Samples")+"]}, {type:'scatter', marker:{opacity:'0.2', color:'#00ffff'}, y:["+pulses.get(i).read("Amplitude")+"]} ], layout );\n";
+			int i=0;
+//			for (int i=qRowKeys.length-1; i>=0; i--) {
+			for (String qRow : q.rows().keys()) {
+				String divId = "plot"+(i++);
+				String thisPulseTime = q.rows().read(qRow, "pulses", "Server Timestamp");
+				plotlyRows =
+										"<tr>"+
+										"	<td><a href=\"csv?pulses.Server+Timestamp="+thisPulseTime+"\">"+thisPulseTime+"</a></td>\n"+
+										"	<td>"+q.rows().read(qRow, "pulses", "Capture ID")+"</td>\n"+
+										//"	<td>"+result.read(qRow, "pulses", "FPGA Count")+"</td>\n"+
+										"	<td>"+q.rows().read(qRow, "pulses", "Server Count")+"</td>\n"+
+										"	<td>"+q.rows().read(qRow, "pulses", "duration")+"</td>\n"+
+										"	<td><div id='"+divId+"'></div></td>\n"+
+										"</tr>\n"+
+										"\n"+
+										plotlyRows;
+				plotCode +=
+										"Plotly.newPlot( '"+divId+"', [ \n"+
+										"	{type:'scatter', fill:'tozeroy', marker:{opacity:'0.2', color:'#00ffff'}, y:["+q.rows().read(qRow, "pulses", "Amplitude")+"]},\n"+
+										"	{type:'scatter', marker:{opacity:'0.2', color:'#0000ff'}, y:["+q.rows().read(qRow, "pulses", "Samples")+"]},\n"+
+										" ], layout );\n";
 			}
-			plotlyDiv += "</table>";
   		res.setBody(
   			plotlyTemplate
-				.replace( "latestPulseTime", latestPulseTime )
-				.replace( "latestPulse", latestPulse )
   			.replace( "plotSize", "autosize:false, width:500, height:100," )
-  			.replace( "plotlyDiv", plotlyDiv )
+  			.replace( "plotlyDiv", plotlyHeader+plotlyRows+plotlyFooter )
 				.replace( "plotCode", plotCode
 				).toString()
   		);
+  		
+  	////////////////////////// CSV
+  	} else if ( req.path().toLowerCase().equals("/csv") ) {
+			Query q = pulseDatabase
+				.query( req.sessionId()	)
+				.output( "pulses", "Server Timestamp" )
+				.output( "pulses", "Samples" )
+				.execute( req.data() ); // parses HTTP data adds inputs (filters)
+			System.out.println( q );
+			String csvStr = "";
+			for (String qRow : q.rows().keys()) {
+				csvStr += q.rows().read(qRow, "pulses", "Server Timestamp")+","+q.rows().read(qRow, "pulses", "Samples")+"\n";
+			}
+//   		List<TableRow> pulses = pulseList( req.sessionId(), req.data() );
+//			String csvStr = "";
+//			for (int i=pulses.size()-1; i>=0; i--) {
+//				csvStr += pulses.get(i).read("Server Timestamp")+","+pulses.get(i).read("Samples")+"\n";
+//			}
+			res.setBody( csvStr );
+			res.setMIME( "text/csv" );
 			
 		////////////////////////// latest
   	} else if ( req.path().toLowerCase().equals("/latest") ) {
    		List<TableRow> pulses = pulseList( req.sessionId(), "pulses.Server+Timestamp.Last=" );  		
-  		String plotlyData = "";
-  		for (TableRow tr : pulses) {
-  			plotlyData += "{type:'scatter', marker:{opacity:'0.2', color:'#0000ff'}, y:["+tr.read( "Samples" )+"]},\n";
-			}			
 			String latestPulseTime = pulses.get(0).read("Server Timestamp");
-			String latestPulse = pulses.get(0).read("Samples");  		
-			String latestAmplitude = pulses.get(0).read("Amplitude");  		
   		res.setBody(
   			plotlyTemplate
-  			.replace( "plotlyDiv", "Latest pulse at: "+latestPulseTime+"<button onClick=\"window.open(encodeURI('data:text/csv;charset=utf-8,"+latestPulse+"'))\">Download CSV</button><br><br><div id='plot_div'></div>" )
+  			.replace( "plotlyDiv", "Latest pulse at <a href=\"csv?pulses.Server+Timestamp="+latestPulseTime+"\">"+latestPulseTime+"<br><br><div id='plot_div'></div>" )
   			.replace( "plotSize", "autosize:false, width:1200, height:720," )
-				.replace( "latestPulseTime", latestPulseTime )
-				.replace( "latestPulse", latestPulse )
+				//.replace( "latestPulseTime", latestPulseTime )
+				//.replace( "latestPulse", latestPulse )
 				.replace( "plotCode",
-					"Plotly.newPlot( 'plot_div', [{type:'scatter', marker:{opacity:'0.2', color:'#0000ff'}, y:["+
-					latestPulse +
+					"Plotly.newPlot( 'plot_div', ["+
+					"{type:'scatter', fill:'tozeroy', marker:{opacity:'0.2', color:'#00ffff'}, y:["+
+					pulses.get(0).read("Amplitude") +
 					"]}," +
-					"{type:'scatter', marker:{opacity:'0.2', color:'#00ffff'}, y:["+
-					latestAmplitude +
+					"{type:'scatter', marker:{opacity:'0.2', color:'#0000ff'}, y:["+
+					pulses.get(0).read("Samples") +
 					"]}," +
 					" ], layout );\n"
 				).toString()
