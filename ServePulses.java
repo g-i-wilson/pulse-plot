@@ -119,14 +119,14 @@ class PulseServerState extends ServerState {
   		res.setMIME( "text/plain" );
   		res.setBody( "Dummy data:\n"+pd );
   		
-		////////////////////////// 2d
-  	} else if ( req.path().toLowerCase().equals("/2d") ) {
+		////////////////////////// filter (2d)
+  	} else if ( req.path().toLowerCase().equals("/filter") ) {
 			Query q = pulseDatabase
 				.query( req.sessionId()	)
 				.output( "pulses", "Samples" ) // output (not used as filter)
 				.output( "pulses", "Amplitude" ) // output (not used as filter)
 				.execute( req.data() ); // parses HTTP data adds inputs (filters)
-			System.out.println( q );
+			//System.out.println( q );
 			String plotlyHeader =
 										"<form>\n"+
 										"<table>\n"+
@@ -147,7 +147,6 @@ class PulseServerState extends ServerState {
 													"this.form.submit();"+
 												"\">\n"+
 										"		<input type=\"text\" name=\"pulses.Server Timestamp\" value=\""+notNull(q.input("pulses","Server Timestamp"))+"\" placeholder=\"Filter\" onblur=\"this.form.submit();\">\n"+
-										"		<a href=\"latest\">Latest</a>\n"+
 										"	</td>\n"+
 										"	<td><input type=\"text\" name=\"pulses.Capture ID\" value=\""+notNull(q.input("pulses","Capture ID"))+"\" placeholder=\"Filter\" onblur=\"this.form.submit();\" size=5></td>\n"+
 										"	<td><input type=\"text\" name=\"pulses.Server Count\" value=\""+notNull(q.input("pulses","Server Count"))+"\" placeholder=\"Filter\" onblur=\"this.form.submit();\" size=5></td>\n"+
@@ -200,11 +199,6 @@ class PulseServerState extends ServerState {
 			for (String qRow : q.rows().keys()) {
 				csvStr += q.rows().read(qRow, "pulses", "Server Timestamp")+","+q.rows().read(qRow, "pulses", "Samples")+"\n";
 			}
-//   		List<TableRow> pulses = pulseList( req.sessionId(), req.data() );
-//			String csvStr = "";
-//			for (int i=pulses.size()-1; i>=0; i--) {
-//				csvStr += pulses.get(i).read("Server Timestamp")+","+pulses.get(i).read("Samples")+"\n";
-//			}
 			res.setBody( csvStr );
 			res.setMIME( "text/csv" );
 			

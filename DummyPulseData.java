@@ -28,11 +28,11 @@ public class DummyPulseData extends PulseData {
 	}
 	
 	public DummyPulseData () {
-		this( 0, 0 );
+		this( 0, 0, (int)randomRange(12.0,20.0) );
 	}
 
-	public DummyPulseData ( int captureId, long timestamp ) {
-		super( 0, captureId, timestamp, dummyData( 16 ), 16 );
+	public DummyPulseData ( int captureId, long timestamp, int samplesPerCycle ) {
+		super( 0, captureId, timestamp, dummyData( samplesPerCycle ), samplesPerCycle );
 		this.captureId = captureId;
 		this.timestamp = timestamp;
 	}
@@ -42,13 +42,13 @@ public class DummyPulseData extends PulseData {
 	}
 	
 	public DummyPulseData spawn ( long timeDelta ) {
-		return new DummyPulseData( captureId+1, timestamp+timeDelta );
+		return new DummyPulseData( ++captureId, timestamp+timeDelta, (int)randomRange(12.0,20.0) );
 	}
 	
 	public static void main (String[] args) {
 		DummyPulseData dpd = null;
 		for (int i=0; i<3; i++) {
-			if (dpd == null) dpd = new DummyPulseData( 1, 100 );
+			if (dpd == null) dpd = new DummyPulseData();
 			else dpd = dpd.spawn();
 			System.out.println( dpd );
 		}
