@@ -15,13 +15,13 @@ public class DummyPulseData extends PulseData {
 		SignalPath wf = new WindowFilter( samplesPerCycle );
 		QuadratureModulator qm = new QuadratureModulator( (double)samplesPerCycle );
 		double phaseAngle = randomRange(Math.PI/2, Math.PI*3/2);
-		for (int i=0; i<(int)randomRange(20,50); i++) {
+		for (int i=0; i<(int)randomRange(20,300); i++) {
 			data.add( (int)wf.sample( 100 * qm.phase( phaseAngle ) * 0.1 ) );
 		}
-		for (int i=0; i<50; i++) {
+		for (int i=0; i<(int)randomRange(800,1000); i++) {
 			data.add( (int)wf.sample( 100 * qm.phase( phaseAngle ) ) );
 		}
-		for (int i=0; i<(int)randomRange(50,80); i++) {
+		for (int i=0; i<(int)randomRange(100,100); i++) {
 			data.add( (int)wf.sample( 100 * qm.phase( phaseAngle ) * 0.1 ) );
 		}
 		return data;

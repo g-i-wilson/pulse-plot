@@ -12,12 +12,12 @@ public class ServePulses {
 
     PulseServerState c = new PulseServerState( "pulse-data" );
     
-    Server testPost 				= new ServerHTTP( c, 9000, "test POST" );
-    Server displayLast		 	= new ServerHTTP( c, 9001, "display last pulse" );
-    Server display100 			= new ServerHTTP( c, 9002, "display last 100 pulses" );
+    Server testPost 				= new ServerHTTP( c, 9000, "Web Interface" );
+    //Server displayLast		 	= new ServerHTTP( c, 9001, "display last pulse" );
+    //Server display100 			= new ServerHTTP( c, 9002, "display last 100 pulses" );
 
-    Server pulsePost 				= new ServerHTTP( c, 49155, "pulse data POST (byte[])" );
-    Server pulsePostTest		= new ServerHTTP( c, 49154, "pulse data POST (hex String)" );
+    Server pulsePost 				= new ServerHTTP( c, 49157, "Binary Data" );
+    Server pulsePostTest		= new ServerHTTP( c, 49154, "Hex-String Data" );
 
 		
 
@@ -72,7 +72,7 @@ class PulseServerState extends ServerState {
 		 .input( "pulses", "Samples", arrayDoubleJoin( pd.samples() ) )
 		 .input( "pulses", "Amplitude", arrayDoubleJoin( pd.amplitude() ) )
 		 .execute( true ); // write flag
-		System.out.println( q );
+		//System.out.println( q );
 	}
 	
 	public List<TableRow> pulseList ( int sessionId, String queryData ) {
@@ -103,14 +103,14 @@ class PulseServerState extends ServerState {
   		PulseData pd = new PulseData( req.data(), 16 );
   		addPulse( req.sessionId(), pd );
   		res.setMIME( "text/plain" );
-  		res.setBody( "Converted string from hex to bytes:\n"+req.data()+"\n"+pd );
+  		res.setBody( "Received hex-string data:\n"+req.data()+"\n"+pd );
   		
-		////////////////////////// 49155
-  	} else if ( req.socket().getLocalPort() == 49155 ) {
+		////////////////////////// 49157
+  	} else if ( req.socket().getLocalPort() == 49157 ) {
   		PulseData pd = new PulseData( req.data().getBytes(), 16 );
   		addPulse( req.sessionId(), pd );
   		res.setMIME( "text/plain" );
-  		res.setBody( "Thanks Storm!\n\n"+pd );
+  		res.setBody( "Received binary data:\n\n"+pd );
   		  		
 		////////////////////////// dummy data
   	} else if ( req.path().toLowerCase().equals("/dummy") ) {
